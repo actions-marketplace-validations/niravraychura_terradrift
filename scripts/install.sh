@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Checksum-verifying installer for TerraDrift GitHub Release archives.
-# Usage: TERRADRIFT_VERSION=v0.4.1 PREFIX=/usr/local ./scripts/install.sh
+# Usage: TERRADRIFT_VERSION=v1.1.1 PREFIX=/usr/local ./scripts/install.sh
 set -euo pipefail
 
-VERSION="${TERRADRIFT_VERSION:-v0.4.1}"
+VERSION="${TERRADRIFT_VERSION:-v1.1.1}"
 PREFIX="${PREFIX:-/usr/local}"
 REPO="${TERRADRIFT_REPO:-niravraychura/terradrift}"
 BASE="https://github.com/${REPO}/releases/download/${VERSION}"
@@ -36,10 +36,15 @@ curl -fsSL -o "${tmpdir}/${archive}" "${BASE}/${archive}"
 
 (
   cd "${tmpdir}"
+  # Older releases list `dist/terradrift_*.tar.gz`; rewrite to the downloaded basename.
+  hash="$(awk -v a="${archive}" '$2 == a || $2 == "dist/" a { print $1; found=1; exit } END { if (!found) exit 1 }' checksums.txt)" || {
+    echo "no checksum line for ${archive}" >&2
+    exit 1
+  }
   if command -v sha256sum >/dev/null 2>&1; then
-    grep " ${archive}\$" checksums.txt | sha256sum -c -
+    printf '%s  %s\n' "${hash}" "${archive}" | sha256sum -c -
   else
-    grep " ${archive}\$" checksums.txt | shasum -a 256 -c -
+    printf '%s  %s\n' "${hash}" "${archive}" | shasum -a 256 -c -
   fi
 )
 
